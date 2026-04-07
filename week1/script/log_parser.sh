@@ -12,33 +12,12 @@ else
 fi
 
 OUTPUT_FILE="errors_$(date +%F).log"
-TMP_FILE=$(mktemp)
 
-CURRENT_YEAR=$(date +%Y)
-CURRENT_DATE=$(date '+%b %e')
-CURRENT_HOUR=$(date '+%H')
-CURRENT_MINUTE=$(date '+%M')
+CURRENT_MONTH=$(date '+%b')
+CURRENT_DAY=$(date '+%e')
 
-START_EPOCH=$(date -d '10 minutes ago' +%s)
-END_EPOCH=$(date +%s)
-
-awk -v year="$CURRENT_YEAR" \
-    -v start="$START_EPOCH" \
-    -v end="$END_EPOCH" '
-{
-    log_time = $1 " " $2 " " $3 " " year
-    cmd = "date -d \"" log_time "\" +%s 2>/dev/null"
-    cmd | getline log_epoch
-    close(cmd)
-
-    if (log_epoch >= start && log_epoch <= end) {
-        print $0
-    }
-}
-' "$LOG_FILE" | grep -iE 'error|fail|critical' > "$TMP_FILE"
-
-cat "$TMP_FILE" > "$OUTPUT_FILE"
-rm -f "$TMP_FILE"
+grep "^$CURRENT_MONTH[[:space:]]\+$CURRENT_DAY " "$LOG_FILE" | \
+grep -iE 'error|fail|critical' | tail -100 > "$OUTPUT_FILE"
 
 ATTEMPT=1
 MAX_ATTEMPTS=3
