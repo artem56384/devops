@@ -1,0 +1,6 @@
+[Unit]
+Description=Write current date to /var/log/myapp.log
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/date_logger.sh
