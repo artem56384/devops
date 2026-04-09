@@ -70,3 +70,34 @@ git remote add origin <url>
 git push
 git pull
 ```
+
+## Отмена изменений в файле
+
+```bash
+git restore <file>
+git checkout -- <file>
+```
+
+## Убрать файл из индекса
+
+```bash
+git reset <file>
+```
+
+## Откат последнего коммита (с сохранением изменений)
+
+```bash
+git reset --soft HEAD~1
+```
+
+## Откат последнего коммита (с удалением изменений)
+
+```bash
+git reset --hard HEAD~1
+```
+
+## Безопасный откат через новый коммит
+
+```bash
+git revert <commit>
+```
