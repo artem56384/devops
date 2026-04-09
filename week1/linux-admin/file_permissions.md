@@ -23,8 +23,11 @@ chmod используется для изменения прав доступа
 Примеры:
 
 chmod 755 file
+
 chmod 644 file
+
 chmod u+x file
+
 chmod g-w file
 
 ## Изменение владельца (chown)
