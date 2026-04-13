@@ -1,0 +1,101 @@
+- name: Setup base system
+  hosts: servers
+  become: yes
+
+  tasks:
+    - name: Install packages
+      apt:
+        name:
+          - htop
+          - curl
+          - git
+          - unzip
+          - nginx
+          - ufw
+        state: present
+        update_cache: yes
+
+    - name: Ensure users exist
+      user:
+        name: "{{ item }}"
+        shell: /bin/bash
+        create_home: yes
+      loop:
+        - dev
+        - monitoring
+
+    - name: Create SSH directory
+      file:
+        path: "/home/{{ item }}/.ssh"
+        state: directory
+        owner: "{{ item }}"
+        group: "{{ item }}"
+        mode: '0700'
+      loop:
+        - dev
+        - monitoring
+
+    - name: Generate SSH keys
+      command: ssh-keygen -t rsa -b 2048 -f /home/{{ item }}/.ssh/id_rsa -N ""
+      args:
+        creates: "/home/{{ item }}/.ssh/id_rsa"
+      loop:
+        - dev
+        - monitoring
+
+    - name: Set permissions for SSH keys
+      file:
+        path: "/home/{{ item }}/.ssh"
+        owner: "{{ item }}"
+        group: "{{ item }}"
+        recurse: yes
+      loop:
+        - dev
+        - monitoring
+
+    - name: Allow port 8080
+      ufw:
+        rule: allow
+        port: "8080"
+        proto: tcp
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+
+    - name: Create nginx config
+      copy:
+        dest: /etc/nginx/sites-available/default
+        content: |
+          server {
+              listen 8080 default_server;
+              listen [::]:8080 default_server;
+              server_name _;
+              location / {
+                  return 200 "Hello from Ansible Nginx\n";
+                  add_header Content-Type text/plain;
+              }
+          }
+
+    - name: Check nginx config
+      command: nginx -t
+      changed_when: false
+
+    - name: Restart nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+    - name: Copy motd
+      copy:
+        dest: /etc/motd
+        content: |
+          Welcome to your server configured by Ansible!
+
+    - name: Create heartbeat cron
+      cron:
+        name: "heartbeat log"
+        user: monitoring
+        job: "date >> /var/log/heartbeat.log"
+        minute: "*/5"
