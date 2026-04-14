@@ -1,0 +1,77 @@
+- name: Install base packages
+  apt:
+    name:
+      - git
+      - curl
+      - tcpdump
+      - htop
+      - stress
+      - openssl
+      - vim
+      - nano
+      - nginx
+      - cron
+      - ufw
+    state: present
+    update_cache: yes
+
+- name: Ensure users exist
+  user:
+    name: "{{ item }}"
+    shell: /bin/bash
+    create_home: yes
+  loop:
+    - dev
+    - monitoring
+
+- name: Open port 8080 in firewall
+  ufw:
+    rule: allow
+    port: "8080"
+    proto: tcp
+
+- name: Enable firewall
+  ufw:
+    state: enabled
+
+- name: Ensure nginx is running
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+
+- name: Configure nginx on 8080
+  copy:
+    dest: /etc/nginx/sites-available/default
+    content: |
+      server {
+          listen 8080 default_server;
+          listen [::]:8080 default_server;
+          server_name _;
+          location / {
+              return 200 "Welcome to the Ansible-managed server\n";
+              add_header Content-Type text/plain;
+          }
+      }
+  notify: Restart nginx
+
+- name: Copy motd
+  copy:
+    dest: /etc/motd
+    content: |
+      Welcome! This server is managed by Ansible.
+
+- name: Ensure heartbeat log exists
+  file:
+    path: /var/log/heartbeat.log
+    state: touch
+    owner: monitoring
+    group: monitoring
+    mode: "0664"
+
+- name: Create heartbeat cron
+  cron:
+    name: "heartbeat log"
+    user: monitoring
+    minute: "*/5"
+    job: "date >> /var/log/heartbeat.log"
