@@ -1,0 +1,88 @@
+- name: Deploy Node Exporter
+  hosts: servers
+  become: yes
+
+  vars:
+    node_exporter_version: "1.8.0"
+    node_exporter_archive: "node_exporter-{{ node_exporter_version }}.linux-amd64"
+    node_exporter_url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/{{ node_exporter_archive }}.tar.gz"
+    node_exporter_install_dir: /opt/node_exporter
+
+  tasks:
+    - name: Create node_exporter user
+      user:
+        name: node_exporter
+        system: yes
+        shell: /usr/sbin/nologin
+        create_home: no
+
+    - name: Create install directory
+      file:
+        path: "{{ node_exporter_install_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Download Node Exporter archive
+      get_url:
+        url: "{{ node_exporter_url }}"
+        dest: "/tmp/{{ node_exporter_archive }}.tar.gz"
+        mode: "0644"
+
+    - name: Extract Node Exporter archive
+      unarchive:
+        src: "/tmp/{{ node_exporter_archive }}.tar.gz"
+        dest: "{{ node_exporter_install_dir }}"
+        remote_src: yes
+        creates: "{{ node_exporter_install_dir }}/{{ node_exporter_archive }}/node_exporter"
+
+    - name: Create symbolic link
+      file:
+        src: "{{ node_exporter_install_dir }}/{{ node_exporter_archive }}/node_exporter"
+        dest: /usr/local/bin/node_exporter
+        state: link
+        force: yes
+
+    - name: Set ownership on install directory
+      file:
+        path: "{{ node_exporter_install_dir }}"
+        owner: node_exporter
+        group: node_exporter
+        recurse: yes
+
+    - name: Create systemd unit
+      copy:
+        dest: /etc/systemd/system/node_exporter.service
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=Node Exporter
+          Wants=network-online.target
+          After=network-online.target
+
+          [Service]
+          User=node_exporter
+          Group=node_exporter
+          Type=simple
+          ExecStart=/usr/local/bin/node_exporter
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: Enable and start Node Exporter
+      systemd:
+        name: node_exporter
+        enabled: yes
+        state: started
+
+    - name: Check metrics endpoint
+      command: curl -fsS http://localhost:9100/metrics
+      register: node_exporter_metrics
+      changed_when: false
+
+    - name: Show metrics result
+      debug:
+        msg: "Node Exporter is up and metrics are available"
